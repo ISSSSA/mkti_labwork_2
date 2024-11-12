@@ -16,6 +16,7 @@ def matches_pattern(value, pattern):
         return False
     return all(p == '*' or p == v for p, v in zip(pattern, str_value))
 
+
 for x0 in range(1000, 10000):
     sequence = [x0]
     valid_sequence = True
@@ -29,8 +30,6 @@ for x0 in range(1000, 10000):
     if valid_sequence:
         break
 
-print(sequence)
-
 ciphertext = "01010110101010011000010111001111"
 x0 = 3769
 n = 4132189
@@ -42,16 +41,16 @@ def least_significant_bit(x):
 
 
 gamma = []
-for i in range(k):
+for i in range(1, 33):
     x_i = pow(x0, 2 ** i, n)
     gamma_bit = least_significant_bit(x_i)
     gamma.append(gamma_bit)
-print(gamma)
 plaintext_bits = []
+
 for c_bit, g_bit in zip(ciphertext, gamma):
     plaintext_bit = int(c_bit) ^ int(g_bit)
     plaintext_bits.append(str(plaintext_bit))
 
 plaintext = ''.join(plaintext_bits)
-
-print("Расшифрованное сообщение:", plaintext)
+print(sequence)
+print("Расшифрованное сообщение:", int(plaintext, 2).to_bytes(4).decode('ascii'))
