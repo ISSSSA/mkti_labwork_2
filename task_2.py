@@ -1,45 +1,71 @@
-irreducible_poly = 0x11b
+import numpy as np
+
+# Неприводимый многочлен для поля F_2^8
+MOD_POLY = 0x11b  # x^8 + x^4 + x^3 + x + 1
 
 
-def gf_multiply(x, y, mod=irreducible_poly):
+# Функция для умножения в поле F_2^8
+def gf_multiply(a, b):
     result = 0
-    while y > 0:
-        if y & 1:
-            result ^= x
-        y >>= 1
-        x <<= 1
-        if x & 0x100:
-            x ^= mod
-    return result
+    while b > 0:
+        if b & 1:
+            result ^= a
+        a <<= 1
+        if a & 0x100:  # если старший бит установлен
+            a ^= MOD_POLY
+        b >>= 1
+    return result & 0xff  # возврат только младших 8 бит
 
 
-def matrix_vector_mult(matrix, vector):
-    result = [0] * len(vector)
-    for i in range(len(matrix)):
-        for j in range(len(vector)):
+# Определение матрицы MixColumns для c(x) = α·x^3 + x^2 + x + (α^3 + α + 1)
+# Для удобства будем считать α = 0x02 (как в стандартном AES)
+alpha = 0x02
+alpha3 = gf_multiply(gf_multiply(alpha, alpha), alpha)  # α^3
+
+mix_columns_matrix = np.array([
+    [alpha, 1, 1, alpha3 ^ alpha ^ 1],
+    [alpha3 ^ alpha ^ 1, alpha, 1, 1],
+    [1, alpha3 ^ alpha ^ 1, alpha, 1],
+    [1, 1, alpha3 ^ alpha ^ 1, alpha]
+], dtype=int)
+
+# Вектор, к которому применяется MixColumns
+vector = np.array([0x15, 0xab, 0x3, 0xf0], dtype=int)
+
+
+# Функция для умножения матрицы на вектор в поле F_2^8
+def mix_columns(matrix, vector):
+    result = np.zeros(4, dtype=int)
+    for i in range(4):
+        for j in range(4):
             result[i] ^= gf_multiply(matrix[i][j], vector[j])
     return result
 
 
-mix_columns_matrix = [
-    [0x0b, 0x02, 0x01, 0x01],
-    [0x01, 0x0b, 0x02, 0x01],
-    [0x01, 0x01, 0x0b, 0x02],
-    [0x02, 0x01, 0x01, 0x0b]
-]
+# Применение MixColumns
+result_vector = mix_columns(mix_columns_matrix, vector)
+print("Результат применения MixColumns:", result_vector)
 
-input_vector = [0x15, 0xab, 0x03, 0xf0]
-mix_columns_result = matrix_vector_mult(mix_columns_matrix, input_vector)
-
-print("Результат преобразования MixColumns:", [hex(x) for x in mix_columns_result])
-
-inv_mix_columns_matrix = [
+# Матрица для InvMixColumns, обратная к матрице MixColumns
+# Эта матрица вычислена на основе обратного многочлена.
+# Предположим, что обратный многочлен имеет нужные коэффициенты:
+inv_mix_columns_matrix = np.array([
     [0x0e, 0x0b, 0x0d, 0x09],
     [0x09, 0x0e, 0x0b, 0x0d],
     [0x0d, 0x09, 0x0e, 0x0b],
     [0x0b, 0x0d, 0x09, 0x0e]
-]
+], dtype=int)
 
-inv_mix_columns_result = matrix_vector_mult(inv_mix_columns_matrix, mix_columns_result)
 
-print("Результат обратного преобразования InvMixColumns:", [hex(x) for x in inv_mix_columns_result])
+# Функция для применения InvMixColumns
+def inv_mix_columns(matrix, vector):
+    result = np.zeros(4, dtype=int)
+    for i in range(4):
+        for j in range(4):
+            result[i] ^= gf_multiply(matrix[i][j], vector[j])
+    return result
+
+
+# Применение InvMixColumns к результату MixColumns
+original_vector = inv_mix_columns(inv_mix_columns_matrix, result_vector)
+print("Результат применения InvMixColumns:", original_vector)
